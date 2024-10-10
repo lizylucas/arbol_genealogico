@@ -1,0 +1,109 @@
+-- Creación de tablas
+CREATE TABLE Persona (
+    idpersona INT PRIMARY KEY,
+    nombres VARCHAR(30),
+    apellidos VARCHAR(30),
+    genero VARCHAR(2),
+    idpadre INT,
+    idmadre INT,
+    CONSTRAINT fk_padre FOREIGN KEY (idpadre) REFERENCES Persona(idpersona),
+    CONSTRAINT fk_madre FOREIGN KEY (idmadre) REFERENCES Persona(idpersona)
+);
+
+-- Inserción de registros
+INSERT INTO Persona (idpersona, nombres, apellidos, genero, idpadre, idmadre) 
+    SELECT 1, 'Luis', 'Moreira', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 2, 'Carmen', 'Hidalgo', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 3, 'Ana', 'Centeno', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 4, 'Lorenzo', 'Ganchozo', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 5, 'Maria', 'Cantos', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 6, 'Ismael', 'Garces', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 7, 'Wilfrido', 'Moreira', 'M', 1, 2 FROM dual UNION ALL
+    SELECT 8, 'Angela', 'Moreira', 'F', 1, 2 FROM dual UNION ALL
+    SELECT 9, 'Diego', 'Veliz', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 10, 'Victor', 'Ganchozo', 'M', 3, 4 FROM dual UNION ALL
+    SELECT 11, 'Anahi', 'Leon', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 12, 'Arquimedes', 'Garces', 'M', 5, 6 FROM dual UNION ALL
+    SELECT 13, 'Luz Maria', 'Garces', 'M', 5, 6 FROM dual UNION ALL
+    SELECT 14, 'Rody', 'Meza', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 15, 'Stalyn', 'Garces', 'M', 5, 6 FROM dual UNION ALL
+    SELECT 16, 'Jessica', 'Gomez', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 17, 'Doris', 'Veliz', 'F', 8, 9 FROM dual UNION ALL
+    SELECT 18, 'Andres', 'Franco', 'M', NULL, NULL FROM dual UNION ALL
+    SELECT 19, 'Ana', 'Ganchozo', 'F', 10, 11 FROM dual UNION ALL
+    SELECT 20, 'Roberto', 'Ganchozo', 'M', 10, 11 FROM dual UNION ALL
+    SELECT 21, 'Flor', 'Gonzales', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 22, 'Emma', 'Garces', 'F', 15, 16 FROM dual UNION ALL
+    SELECT 23, 'Ines', 'Meza', 'F', 13, 14 FROM dual UNION ALL
+    SELECT 24, 'Raul', 'Meza', 'M', 13, 14 FROM dual UNION ALL
+    SELECT 25, 'Sofia', 'Mero', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 26, 'Mateo', 'Franco', 'M', 17, 18 FROM dual UNION ALL
+    SELECT 27, 'Melisa', 'Anchundia', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 28, 'Joel', 'Ganchoso', 'M', 20, 21 FROM dual UNION ALL
+    SELECT 29, 'Luis', 'Meza', 'M', 24, 25 FROM dual UNION ALL 
+    SELECT 30, 'Candy', 'Legarda', 'F', NULL, NULL FROM dual UNION ALL
+    SELECT 31, 'Junior', 'Franco', 'M', 26, 27 FROM dual UNION ALL
+    SELECT 32, 'Andres', 'Franco', 'M', 26, 27 FROM dual UNION ALL
+    SELECT 33, 'Martin', 'Meza', 'M', 29,30 FROM dual;
+    -- Función para contar miembros de la familia
+CREATE OR REPLACE FUNCTION contar_miembros(p_idpersona INT) RETURN VARCHAR2 IS
+    v_hijos NUMBER;
+    v_nietos NUMBER;
+    v_bisnietos NUMBER;
+    v_tataranietos NUMBER;
+    
+    -- Contar hijos
+    BEGIN
+        SELECT COUNT(*)
+        INTO v_hijos
+        FROM Persona 
+        WHERE idpadre = p_idpersona OR idmadre = p_idpersona;
+
+        -- Contar nietos
+        SELECT COUNT(*)
+        INTO v_nietos
+        FROM Persona p
+        WHERE p.idpadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona)
+           OR p.idmadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona);
+        
+        -- Contar bisnietos
+        SELECT COUNT(*)
+        INTO v_bisnietos
+        FROM Persona p
+        WHERE p.idpadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona))
+           OR p.idmadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona));
+        
+        -- Contar tataranietos
+        SELECT COUNT(*)
+        INTO v_tataranietos
+        FROM Persona p
+        WHERE p.idpadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona)))
+           OR p.idmadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre IN (SELECT idpersona FROM Persona WHERE idpadre = p_idpersona OR idmadre = p_idpersona)));
+
+        RETURN 'Hijos: ' || v_hijos || ', Nietos: ' || v_nietos || ', Bisnietos: ' || v_bisnietos || ', Tataranietos: ' || v_tataranietos;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN 'No se encontraron registros';
+        WHEN OTHERS THEN
+            RETURN 'Error: ' || SQLERRM;
+END contar_miembros;
+/
+
+-- Bloque PL/SQL para imprimir información
+DECLARE
+    CURSOR c_personas IS 
+        SELECT idpersona, nombres, apellidos FROM Persona;
+
+    v_info VARCHAR2(200);
+BEGIN
+    FOR registro IN c_personas LOOP
+        v_info := contar_miembros(registro.idpersona);
+        DBMS_OUTPUT.PUT_LINE('NOMBRES: ' || registro.nombres || ' ' || registro.apellidos || CHR(9) || v_info);
+ END LOOP;
+END;
+
+--Borrar tabla
+drop table Persona
+
+-- consulta
+select * from Persona
